@@ -7,10 +7,12 @@ services:
   - type: web
     name: smartcattle-backend
     runtime: python
-    # Free instances run on a fraction of a CPU and can restart at any moment; this one must stay up.
-    plan: starter
+    # deploy-walter: free plan, and the code is main plus the branches merged here.
+    plan: free
+    branch: deploy-walter
     # A commit whose tests fail never reaches the running service.
-    autoDeployTrigger: checksPass
+    # CI runs only on main, so this branch deploys on every commit; run the tests before pushing.
+    autoDeployTrigger: commit
     buildCommand: pip install -r requirements.txt
     # Migrations run on every deploy before the API starts.
     startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --ws-max-size 65536 --timeout-keep-alive 20 --no-server-header
@@ -43,8 +45,9 @@ services:
         value: "true"
       - key: ACCESS_TOKEN_MINUTES
         value: "60"
+      # Set in the Render dashboard: this deploy's frontend URL has a suffix.
       - key: ALLOWED_ORIGINS
-        value: https://smartcattle-frontend.onrender.com,http://localhost:5173
+        sync: false
       # Works for every account from the start. An account that links a PC at its farm uses that PC instead.
       - key: SMARTCATTLE_AI_URL
         value: http://localhost:8090
@@ -76,8 +79,9 @@ services:
     name: smartcattle-frontend
     runtime: static
     repo: https://github.com/GUERRREROALEXANDER/fronted-SmartCattle
-    branch: main
-    autoDeployTrigger: checksPass
+    branch: deploy-walter
+    # CI runs only on main, so this branch deploys on every commit; run the tests before pushing.
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     headers:
@@ -102,9 +106,11 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.22.0
+      # Set in the Render dashboard: this deploy's backend URL has a suffix.
       - key: VITE_API_BASE_URL
-        value: https://smartcattle-backend.onrender.com
+        sync: false
       - key: VITE_DATA_SOURCE
         value: hybrid
+      # No AI service on Render here: each account's linked farm PC provides live video.
       - key: VITE_AI_SERVICE_URL
-        value: https://smartcattle-live.onrender.com
+        value: ""
