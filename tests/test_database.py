@@ -349,6 +349,50 @@ def test_the_report_views_match_the_database_repository():
         assert f"CREATE OR REPLACE VIEW {name} AS {' '.join(query.split())};" in shared, name
 
 
+@pytest.mark.skipif(not os.getenv("TEST_DATABASE_URL"), reason="TEST_DATABASE_URL is not set")
+def test_the_shared_schema_the_backend_never_creates_itself(engine_for):
+    """What database/migrations/ contributes and no revision here would rebuild.
+
+    0012 applied that folder once. A database that already passed it never sees
+    a file added afterwards, and five arrived: users.preferences, camera_account,
+    detection_logs, the daily_reports() function and the assistant's views. No
+    revision of this backend creates any of them, so a stale copy leaves both a
+    fresh database and a migrated one short without failing anything -- until
+    something asks for an object that is not there.
+
+    Asserted after a full upgrade so it covers the copy and the re-application
+    together: dropping a file from the folder breaks this, and so does adding
+    one to the database repository without copying it over.
+    """
+    url = database_settings(os.environ["TEST_DATABASE_URL"]).sqlalchemy_url
+    reset_postgresql(url)
+    command.upgrade(alembic_config(url), "head")
+    with engine_for(url).connect() as connection:
+        # 0029 widens users rather than adding a table of its own.
+        preferences = connection.execute(text(
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_name = 'users' AND column_name = 'preferences'",
+        )).scalar_one_or_none()
+        assert preferences == "jsonb"
+        assert connection.execute(text(
+            "SELECT count(*) FROM pg_constraint WHERE conname = 'users_preferences_is_object_check'",
+        )).scalar_one() == 1
+        functions = set(connection.execute(text(
+            "SELECT proname FROM pg_proc WHERE proname IN "
+            "('daily_reports', 'assistant_account_id', 'assistant_daily_reports')",
+        )).scalars())
+        assert functions == {"daily_reports", "assistant_account_id", "assistant_daily_reports"}
+        views = set(connection.execute(text(
+            "SELECT viewname FROM pg_views WHERE schemaname = current_schema()",
+        )).scalars())
+        # The last two read v_camera_health and security_alerts, which the
+        # backend owns, so 0033 skips them on a database without them.
+        assert {
+            "v_assistant_detections", "v_assistant_events",
+            "v_assistant_cameras", "v_assistant_alerts",
+        } <= views
+
+
 class _DriverError(Exception):
     def __init__(self, message: str, sqlstate: str | None = None) -> None:
         super().__init__(message)
