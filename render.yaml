@@ -5,7 +5,7 @@
 # ALLOWED_ORIGINS and VITE_API_BASE_URL to the real URLs.
 services:
   - type: web
-    name: smartcattle-backend
+    name: smartcattle2-backend
     runtime: python
     # deploy-walter: free plan, and the code is main plus the branches merged here.
     plan: free
@@ -76,7 +76,7 @@ services:
         sync: false
 
   - type: web
-    name: smartcattle-frontend
+    name: smartcattle2-frontend
     runtime: static
     repo: https://github.com/walterjojoa/FRONTED-SMARTCATTLE2.0
     branch: deploy-walter
