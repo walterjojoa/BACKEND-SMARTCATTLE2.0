@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
+from app.core.camera_source import describe_source_problem
 from app.core.config import Settings
 from app.core.security import create_media_ticket
 from app.dependencies import (
@@ -111,6 +112,11 @@ def save_camera(
     clock: Clock = Depends(get_clock),
 ) -> SavedCameraView:
     """Adds a camera to the account. The id comes from here, so nobody can claim one another account already uses."""
+    # Checked here and not in the schema so the answer is a 400 naming the field,
+    # rather than pydantic's 422 with its own English shape around it.
+    problem = describe_source_problem(data.source)
+    if problem is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=problem)
     if len(store.saved(owner.account_id)) >= MAX_SAVED_CAMERAS:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This account already has too many cameras")
     saved = SavedCamera(id=f"cam-{uuid4().hex[:12]}", name=data.name, source=data.source, account_id=owner.account_id)
