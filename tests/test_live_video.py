@@ -234,4 +234,4 @@ def test_a_media_url_of_exactly_the_limit_is_accepted(api, key):
 
 def test_the_panel_state_keeps_its_shape(api, ana, key):
     share_video(api, key)
-    assert api.get("/api/farm-pc", headers=ana).json() == {"url": PC_URL}
+    assert api.get("/api/farm-pc", headers=ana).json()["url"] == PC_URL

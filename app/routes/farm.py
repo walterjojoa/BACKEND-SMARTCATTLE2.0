@@ -70,7 +70,19 @@ def farm_pc_access(scope: Visible, account_id: int | None = Depends(reporter_acc
 def get_farm_pc(
     scope: Visible,
     services: FarmServices = Depends(get_farm_services),
+    settings: Settings = Depends(get_app_settings),
     clock: Clock = Depends(get_clock),
 ) -> FarmPcState:
-    """The address of this account's PC, or null while it is off or not linked yet."""
-    return FarmPcState(url=services.url_for(scope.account_id, clock()))
+    """This account's PC, and the shared service it can use while it has none.
+
+    SMARTCATTLE_AI_URL was reaching nobody. /health said whether it was
+    configured and nothing handed over the address, so a browser with no PC
+    linked had nowhere to send video to: the "Transmitir" button stayed grey
+    with no way to find out why. Kept as its own field rather than folded into
+    `url`, because the page asks `url` whether this account can reach cameras
+    on its own network, and the shared service answers no to that.
+    """
+    return FarmPcState(
+        url=services.url_for(scope.account_id, clock()),
+        service_url=str(settings.smartcattle_ai_url) if settings.smartcattle_ai_url else None,
+    )
