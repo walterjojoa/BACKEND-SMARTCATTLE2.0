@@ -7,11 +7,11 @@ services:
   - type: web
     name: smartcattle2-backend
     runtime: python
-    # deploy-walter: free plan, and the code is main plus the branches merged here.
+    # Free plan. Everyone pushes to main and Render deploys it, so the team sees the same site.
     plan: free
-    branch: deploy-walter
+    branch: main
     # A commit whose tests fail never reaches the running service.
-    # CI runs only on main, so this branch deploys on every commit; run the tests before pushing.
+    # Deploys on every commit to main; run the tests before pushing.
     autoDeployTrigger: commit
     buildCommand: pip install -r requirements.txt
     # Migrations run on every deploy before the API starts.
@@ -79,8 +79,8 @@ services:
     name: smartcattle2-frontend
     runtime: static
     repo: https://github.com/walterjojoa/FRONTED-SMARTCATTLE2.0
-    branch: deploy-walter
-    # CI runs only on main, so this branch deploys on every commit; run the tests before pushing.
+    branch: main
+    # Deploys on every commit to main; run the tests before pushing.
     autoDeployTrigger: commit
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
