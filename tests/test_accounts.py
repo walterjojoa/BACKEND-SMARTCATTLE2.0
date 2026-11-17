@@ -386,3 +386,28 @@ def test_the_status_pushed_to_the_owner_keeps_the_cameras_name(api, two):
         message = socket.receive_json()
     assert message["type"] == "camera.status"
     assert message["data"]["display_name"] == "Corral del ternero"
+
+
+@pytest.mark.parametrize("source", ["abc", "mi camara", "ftp://192.168.1.50/live", "999.1.1.1"])
+def test_a_camera_nobody_can_reach_is_refused_before_it_is_saved(api, source):
+    """Saving used to answer 201 for any text, and the camera just never came online.
+
+    The reply is a 400 and not pydantic's 422: the message is for the person
+    looking at the field, so it says what to type instead of naming the schema.
+    """
+    _, headers = sign_up(api, "ana@finca.example")
+    response = api.post("/api/cameras/saved", json={"name": "Potrero", "source": source}, headers=headers)
+    assert response.status_code == 400
+    assert "192.168.1.50" in response.json()["detail"]
+    assert api.get("/api/cameras/saved", headers=headers).json()["total"] == 0
+
+
+@pytest.mark.parametrize("source", [
+    "192.168.1.50", "192.168.1.50:554", "192.168.1.20:4747/video",
+    "rtsp://192.168.1.50/live", "0", "7J0A12ABCDEF345",
+])
+def test_every_way_a_camera_is_reached_is_still_accepted(api, source):
+    _, headers = sign_up(api, "ana@finca.example")
+    assert api.post(
+        "/api/cameras/saved", json={"name": "Potrero", "source": source}, headers=headers,
+    ).status_code == 201
