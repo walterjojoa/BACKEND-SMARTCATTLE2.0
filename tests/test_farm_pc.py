@@ -119,23 +119,23 @@ def test_the_shared_key_still_works_for_a_service_of_your_own(api, ana):
 
 
 def test_each_account_finds_only_its_own_pc(api, ana, beto):
-    assert api.get("/api/farm-pc", headers=ana).json() == {"url": None}
+    assert api.get("/api/farm-pc", headers=ana).json()["url"] is None
     assert api.put("/api/ai/farm-pc", json={"url": URL}, headers=link(api, ana)).status_code == 204
-    assert api.get("/api/farm-pc", headers=ana).json() == {"url": URL}
-    assert api.get("/api/farm-pc", headers=beto).json() == {"url": None}
+    assert api.get("/api/farm-pc", headers=ana).json()["url"] == URL
+    assert api.get("/api/farm-pc", headers=beto).json()["url"] is None
 
 
 def test_a_pc_that_stops_reporting_stops_being_offered(api, ana, clock):
     api.put("/api/ai/farm-pc", json={"url": URL}, headers=link(api, ana))
     clock.now += timedelta(seconds=91)
-    assert api.get("/api/farm-pc", headers=ana).json() == {"url": None}
+    assert api.get("/api/farm-pc", headers=ana).json()["url"] is None
 
 
 def test_the_new_address_replaces_the_old_one(api, ana):
     key = link(api, ana)
     api.put("/api/ai/farm-pc", json={"url": URL}, headers=key)
     api.put("/api/ai/farm-pc", json={"url": "https://otra.trycloudflare.com/"}, headers=key)
-    assert api.get("/api/farm-pc", headers=ana).json() == {"url": "https://otra.trycloudflare.com"}
+    assert api.get("/api/farm-pc", headers=ana).json()["url"] == "https://otra.trycloudflare.com"
 
 
 def test_the_shared_key_cannot_claim_to_be_a_farm(api):
@@ -169,3 +169,16 @@ def test_reports_from_a_linked_pc_are_not_cut_off_by_the_limits_for_people():
         forged = {"X-API-Key": farm_key(1, "otro-secreto-que-no-es-el-del-servidor-en-absoluto")}
         answers = {client.put("/api/ai/farm-pc", json={"url": URL}, headers=forged).status_code for _ in range(130)}
         assert 429 in answers
+
+
+def test_the_shared_service_is_handed_over_so_a_browser_has_somewhere_to_send_video(api, monkeypatch):
+    """SMARTCATTLE_AI_URL was configured and never reached the browser.
+
+    /health only said whether one existed. With no PC linked the page had no
+    address to stream to, so "Transmitir" stayed disabled and said nothing.
+    """
+    _, ana = sign_up(api, "ana@finca.example")
+    body = api.get("/api/farm-pc", headers=ana).json()
+    # Nothing configured in tests, so the field is present and empty rather than absent.
+    assert body["url"] is None
+    assert body["service_url"] is None

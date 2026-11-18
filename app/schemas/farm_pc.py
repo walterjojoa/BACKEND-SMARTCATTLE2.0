@@ -33,3 +33,7 @@ class FarmPcPresence(BaseModel):
 
 class FarmPcState(BaseModel):
     url: str | None = Field(description="Address of the account's PC; null while it is off or not linked")
+    service_url: str | None = Field(
+        default=None,
+        description="The AI service every account can use when it has no PC of its own; null when none is configured",
+    )
