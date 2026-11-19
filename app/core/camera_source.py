@@ -23,6 +23,11 @@ WEBCAM_INDEX = re.compile(r"^\d{1,2}$")
 
 SCHEMES = ("rtsp", "http", "https")
 
+#: A phone or PC broadcasting from the dashboard page itself. It has no address:
+#: its browser sends the pictures to the AI service, and this word is what the
+#: frontend saves for it (DEVICE_SOURCE). Refusing it made "Transmitir" fail with a 400.
+DEVICE_SOURCE = "browser"
+
 PROBLEM = (
     "Escribe la dirección de la cámara: una IP como 192.168.1.50 (con puerto si lo usa), "
     "un enlace rtsp:// o http:// , el número de serie Imou, o el número de una cámara web (0)."
@@ -67,6 +72,8 @@ def describe_source_problem(source: str) -> str | None:
     value = source.strip()
     if not value:
         return PROBLEM
+    if value == DEVICE_SOURCE:
+        return None
     if _is_url(value) or _is_ipv4(value) or WEBCAM_INDEX.match(value) or IMOU_SERIAL.match(value):
         return None
     return PROBLEM

@@ -19,6 +19,8 @@ from app.core.camera_source import PROBLEM, describe_source_problem
     "1",
     # An Imou serial, as the label on the device prints it.
     "7J0A12ABCDEF345",
+    # A phone or PC broadcasting from the page: no address at all, by design.
+    "browser",
 ])
 def test_a_reachable_camera_is_accepted(source):
     assert describe_source_problem(source) is None
