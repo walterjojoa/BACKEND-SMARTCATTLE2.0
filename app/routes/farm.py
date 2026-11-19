@@ -52,11 +52,17 @@ def report_farm_pc(
     services: FarmServices = Depends(get_farm_services),
     clock: Clock = Depends(get_clock),
 ) -> None:
-    """Where this PC can be reached now. Its address changes when its tunnel restarts."""
+    """Where this PC can be reached now. Its address changes when its tunnel restarts.
+
+    With the deployment's shared key instead of a farm key, it is the service every account without a PC of its
+    own uses: anyone who signs in can then broadcast a phone or open a camera with a public address.
+    """
+    now = clock()
     if account_id is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This needs the key of a linked PC")
+        services.report_shared(str(data.url).rstrip("/"), now)
+        return
     media_url = None if data.media_url is None else str(data.media_url).rstrip("/")
-    services.report(account_id, str(data.url).rstrip("/"), clock(), media_url)
+    services.report(account_id, str(data.url).rstrip("/"), now, media_url)
 
 
 @router.get("/api/ai/farm-pc/access", status_code=status.HTTP_204_NO_CONTENT)
@@ -82,7 +88,10 @@ def get_farm_pc(
     `url`, because the page asks `url` whether this account can reach cameras
     on its own network, and the shared service answers no to that.
     """
+    now = clock()
+    configured = str(settings.smartcattle_ai_url) if settings.smartcattle_ai_url else None
     return FarmPcState(
-        url=services.url_for(scope.account_id, clock()),
-        service_url=str(settings.smartcattle_ai_url) if settings.smartcattle_ai_url else None,
+        url=services.url_for(scope.account_id, now),
+        # The one that reported itself is alive right now; the configured one is only a promise.
+        service_url=services.shared_url(now) or configured,
     )

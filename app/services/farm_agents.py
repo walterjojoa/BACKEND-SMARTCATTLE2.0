@@ -44,7 +44,23 @@ class FarmServices:
 
     def __init__(self) -> None:
         self._seen: dict[int, tuple[str, str | None, datetime]] = {}
+        self._shared: tuple[str, datetime] | None = None
         self._lock = Lock()
+
+    def report_shared(self, url: str, now: datetime) -> None:
+        """The service every account may use, run with the deployment's own key.
+
+        Its address is a quick tunnel that changes on every restart, so a fixed
+        SMARTCATTLE_AI_URL could never follow it: it reports itself like a farm PC does.
+        """
+        with self._lock:
+            self._shared = (url, now)
+
+    def shared_url(self, now: datetime) -> str | None:
+        """The shared service's address, unless it has gone quiet."""
+        with self._lock:
+            found = self._shared
+        return found[0] if found is not None and now - found[1] <= OFFLINE_AFTER else None
 
     def report(self, account_id: int, url: str, now: datetime, media_url: str | None = None) -> None:
         with self._lock:

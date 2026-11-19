@@ -138,8 +138,31 @@ def test_the_new_address_replaces_the_old_one(api, ana):
     assert api.get("/api/farm-pc", headers=ana).json()["url"] == "https://otra.trycloudflare.com"
 
 
-def test_the_shared_key_cannot_claim_to_be_a_farm(api):
-    assert api.put("/api/ai/farm-pc", json={"url": URL}, headers={"X-API-Key": SHARED}).status_code == 403
+def test_the_shared_key_cannot_claim_to_be_a_farm(api, ana):
+    """With the shared key the address becomes everyone's shared service, never one account's PC."""
+    assert api.put("/api/ai/farm-pc", json={"url": URL}, headers={"X-API-Key": SHARED}).status_code == 204
+    assert api.get("/api/farm-pc", headers=ana).json()["url"] is None
+
+
+def test_the_shared_service_reports_its_address_and_every_account_gets_it(api, ana, beto):
+    """Its quick tunnel changes on every restart: a fixed SMARTCATTLE_AI_URL could not follow it."""
+    shared = {"X-API-Key": SHARED}
+    assert api.put("/api/ai/farm-pc", json={"url": URL + "/"}, headers=shared).status_code == 204
+    assert api.get("/api/farm-pc", headers=ana).json()["service_url"] == URL
+    assert api.get("/api/farm-pc", headers=beto).json()["service_url"] == URL
+    api.put("/api/ai/farm-pc", json={"url": "https://otra.trycloudflare.com"}, headers=shared)
+    assert api.get("/api/farm-pc", headers=ana).json()["service_url"] == "https://otra.trycloudflare.com"
+
+
+def test_a_shared_service_that_stops_reporting_stops_being_offered(api, ana, clock):
+    api.put("/api/ai/farm-pc", json={"url": URL}, headers={"X-API-Key": SHARED})
+    clock.now += timedelta(seconds=91)
+    assert api.get("/api/farm-pc", headers=ana).json()["service_url"] is None
+
+
+def test_a_wrong_key_cannot_take_over_the_shared_service(api, ana):
+    assert api.put("/api/ai/farm-pc", json={"url": URL}, headers={"X-API-Key": "otra-cosa"}).status_code in (401, 403)
+    assert api.get("/api/farm-pc", headers=ana).json()["service_url"] is None
 
 
 def test_only_the_accounts_people_may_look_around_its_network(api, ana, beto):
